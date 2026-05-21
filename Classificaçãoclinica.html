@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classificador Clínico Pediátrico</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px; /* Aumentei um pouco para caber os indicadores */
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        /* Nova classe para colocar o campo e o indicador lado a lado */
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        select, input {
+            flex: 1; /* Ocupa o espaço que sobrar */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        
+        /* Estilo da etiqueta lateral */
+        .indicador {
+            width: 80px;
+            padding: 10px 0;
+            text-align: center;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .indicador-vazio {
+            background-color: #f0f0f0;
+            color: #aaa;
+            border: 1px dashed #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #resultado {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 16px;
+            display: none;
+        }
+        .classificacao-final {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        /* Cores de Triage Padrão */
+        .leve-bg { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .moderado-bg { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .grave-bg { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Classificação Clínica</h2>
+
+    <div class="form-group">
+        <label for="idade">Idade (meses):</label>
+        <select id="idade" onchange="atualizarIndicadores()">
+            <option value="<3">Menor que 3 meses</option>
+            <option value="4-12">4 até 12 meses</option>
+            <option value=">12">Maior que 12 meses</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="frequencia">Frequência (valor numérico):</label>
+        <div class="input-row">
+            <input type="number" id="frequencia" placeholder="Ex: 65" oninput="atualizarIndicadores()" required>
+            <div id="ind-freq" class="indicador indicador-vazio">-</div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="trabalho">Trabalho Respiratório:</label>
+        <div class="input-row">
+            <select id="trabalho" onchange="atualizarIndicadores()">
+                <option value="1">NI ou leve</option>
+                <option value="2">Retrações moderadas</option>
+                <option value="3">Retrações Graves, balanço cabeça...</option>
+            </select>
+            <div id="ind-trab" class="indicador indicador-vazio">-</div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="estado">Estado Mental:</label>
+        <div class="input-row">
+            <select id="estado" onchange="atualizarIndicadores()">
+                <option value="1">Basal</option>
+                <option value="2">Desacomodado, ansioso ou sonolento</option>
+                <option value="3">Letárgico ou inconsolável</option>
+            </select>
+            <div id="ind-estado" class="indicador indicador-vazio">-</div>
+        </div>
+    </div>
+
+    <button onclick="calcularClassificacao()">Verificar Classificação Final</button>
+
+    <div id="resultado"></div>
+</div>
+
+<script>
+    // Executa a atualização logo que a página carrega para pintar as caixas que já têm valor (selects)
+    window.onload = function() {
+        atualizarIndicadores();
+    };
+
+    // Função para aplicar a cor e o texto correto na etiqueta lateral
+    function aplicarEstiloIndicador(elementoId, nivel) {
+        const elemento = document.getElementById(elementoId);
+        if (nivel === 3) {
+            elemento.className = 'indicador grave-bg';
+            elemento.innerText = 'Grave';
+        } else if (nivel === 2) {
+            elemento.className = 'indicador moderado-bg';
+            elemento.innerText = 'Mod.';
+        } else if (nivel === 1) {
+            elemento.className = 'indicador leve-bg';
+            elemento.innerText = 'Leve';
+        } else {
+            elemento.className = 'indicador indicador-vazio';
+            elemento.innerText = '-';
+        }
+    }
+
+    // Função que calcula a gravidade individual em tempo real
+    function atualizarIndicadores() {
+        const idade = document.getElementById('idade').value;
+        const freqInput = document.getElementById('frequencia').value;
+        const trabResp = parseInt(document.getElementById('trabalho').value);
+        const estadoMental = parseInt(document.getElementById('estado').value);
+
+        // Calcula e atualiza Frequência
+        if (freqInput === '') {
+            aplicarEstiloIndicador('ind-freq', 0); // Vazio
+        } else {
+            const freq = parseInt(freqInput);
+            let nivelFreq = 1;
+            if (idade === '<3') {
+                if (freq >= 70) nivelFreq = 3;
+                else if (freq >= 61) nivelFreq = 2;
+                else nivelFreq = 1;
+            } else if (idade === '4-12') {
+                if (freq >= 60) nivelFreq = 3;
+                else if (freq >= 51) nivelFreq = 2;
+                else nivelFreq = 1;
+            } else if (idade === '>12') {
+                if (freq >= 45) nivelFreq = 3;
+                else if (freq >= 41) nivelFreq = 2;
+                else nivelFreq = 1;
+            }
+            aplicarEstiloIndicador('ind-freq', nivelFreq);
+        }
+
+        // Atualiza Trabalho Respiratório e Estado Mental
+        aplicarEstiloIndicador('ind-trab', trabResp);
+        aplicarEstiloIndicador('ind-estado', estadoMental);
+    }
+
+    // Função do botão principal (resultado final)
+    function calcularClassificacao() {
+        const idade = document.getElementById('idade').value;
+        const freqInput = document.getElementById('frequencia').value;
+        const trabResp = parseInt(document.getElementById('trabalho').value);
+        const estadoMental = parseInt(document.getElementById('estado').value);
+        const resultadoDiv = document.getElementById('resultado');
+
+        if (freqInput === '') {
+            resultadoDiv.style.display = 'block';
+            resultadoDiv.className = '';
+            resultadoDiv.style.backgroundColor = '#e2e3e5';
+            resultadoDiv.style.color = '#383d41';
+            resultadoDiv.innerHTML = "<div style='text-align:center;'>⚠️ Por favor, informe a frequência.</div>";
+            return;
+        }
+
+        const freq = parseInt(freqInput);
+        let nivelFreq = 1;
+
+        if (idade === '<3') {
+            if (freq >= 70) nivelFreq = 3;
+            else if (freq >= 61) nivelFreq = 2;
+            else nivelFreq = 1;
+        } else if (idade === '4-12') {
+            if (freq >= 60) nivelFreq = 3;
+            else if (freq >= 51) nivelFreq = 2;
+            else nivelFreq = 1;
+        } else if (idade === '>12') {
+            if (freq >= 45) nivelFreq = 3;
+            else if (freq >= 41) nivelFreq = 2;
+            else nivelFreq = 1;
+        }
+
+        const maxNivel = Math.max(nivelFreq, trabResp, estadoMental);
+
+        let conteudoHtml = `<div class="classificacao-final">`;
+
+        resultadoDiv.style.display = 'block';
+        if (maxNivel === 3) {
+            resultadoDiv.className = 'grave-bg';
+            conteudoHtml += "Classificação Final: GRAVE";
+        } else if (maxNivel === 2) {
+            resultadoDiv.className = 'moderado-bg';
+            conteudoHtml += "Classificação Final: MODERADO";
+        } else {
+            resultadoDiv.className = 'leve-bg';
+            conteudoHtml += "Classificação Final: LEVE";
+        }
+        
+        conteudoHtml += "</div>";
+        resultadoDiv.innerHTML = conteudoHtml;
+    }
+</script>
+
+</body>
+</html>
